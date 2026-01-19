@@ -2,47 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Leaderboard</title>
+<title>Echo Shift 3D — Echo Shields</title>
 <style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    background: black;
-    font-family: system-ui;
-    color: white;
-  }
-  #ui {
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 20px;
-    font-size: 14px;
-    z-index: 10;
-  }
-  #overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0,0,0,0.85);
-    color: white;
-    flex-direction: column;
-    font-family: system-ui;
-    text-align: center;
-    z-index: 20;
-  }
-  #overlay h1 {
-    font-size: 48px;
-    margin: 0 0 20px 0;
-  }
-  #overlay p, #overlay div {
-    font-size: 22px;
-    margin: 5px 0;
-  }
+  body { margin:0; overflow:hidden; background:black; font-family:system-ui; color:white;}
+  #ui { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:14px; z-index:10; }
+  #overlay { position:fixed; top:0; left:0; width:100%; height:100%; display:none; justify-content:center; align-items:center; background: rgba(0,0,0,0.85); color:white; flex-direction:column; text-align:center; z-index:20;}
+  #overlay h1 { font-size:48px; margin:0 0 20px 0; }
+  #overlay p,#overlay div { font-size:22px; margin:5px 0; }
 </style>
 </head>
 <body>
@@ -51,7 +17,6 @@
   <div id="status">SAFE</div>
   <div>R = Rewind</div>
 </div>
-
 <div id="overlay">
   <h1>GAME OVER</h1>
   <p id="finalScore">Score: 0</p>
@@ -62,192 +27,160 @@
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
-/* ---------- LEADERBOARD STORAGE ---------- */
+/* ---------- LEADERBOARD ---------- */
 const LB_KEY = "echo_shift_leaderboard";
-function loadLeaderboard() {
-  return JSON.parse(localStorage.getItem(LB_KEY) || "[]");
-}
-function saveScore(score) {
-  let lb = loadLeaderboard();
-  lb.push(Math.floor(score));
-  lb.sort((a,b)=>b-a);
-  lb = lb.slice(0,5);
-  localStorage.setItem(LB_KEY, JSON.stringify(lb));
-  return lb;
-}
+function loadLeaderboard(){ return JSON.parse(localStorage.getItem(LB_KEY)||"[]"); }
+function saveScore(score){ let lb=loadLeaderboard(); lb.push(Math.floor(score)); lb.sort((a,b)=>b-a); lb=lb.slice(0,5); localStorage.setItem(LB_KEY,JSON.stringify(lb)); return lb; }
 
 /* ---------- SCENE ---------- */
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x000000, 20, 80);
+scene.fog = new THREE.Fog(0x000000,20,80);
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  200
-);
-camera.position.set(0, 25, 30);
-camera.lookAt(0, 0, 0);
+const camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,200);
+camera.position.set(0,25,30);
+camera.lookAt(0,0,0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
 /* ---------- LIGHT ---------- */
 scene.add(new THREE.AmbientLight(0x404040));
-const light = new THREE.PointLight(0x00ffff, 1.2, 100);
-light.position.set(0, 20, 10);
+const light = new THREE.PointLight(0x00ffff,1.2,100);
+light.position.set(0,20,10);
 scene.add(light);
 
 /* ---------- INPUT ---------- */
 const keys = {};
-addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
 
 /* ---------- PLAYER ---------- */
-const playerGeo = new THREE.SphereGeometry(1, 32, 32);
-const playerMat = new THREE.MeshStandardMaterial({
-  color: 0x00ffcc,
-  emissive: 0x00ffcc,
-  emissiveIntensity: 0.6
-});
-const player = new THREE.Mesh(playerGeo, playerMat);
+const playerGeo = new THREE.SphereGeometry(1,32,32);
+const playerMat = new THREE.MeshStandardMaterial({color:0x00ffcc,emissive:0x00ffcc,emissiveIntensity:0.6});
+const player = new THREE.Mesh(playerGeo,playerMat);
 scene.add(player);
 
 /* ---------- GAME STATE ---------- */
 let shards = [];
 let echoes = [];
 let timeline = [];
-let score = 0;
-let alive = true;
-let grace = 120;
-let tick = 0;
-const LIMIT = 20;
+let score=0;
+let alive=true;
+let grace=120;
+let tick=0;
+const LIMIT=20;
 
-const overlay = document.getElementById("overlay");
-const finalScore = document.getElementById("finalScore");
-const lbDiv = document.getElementById("leaderboard");
+const overlay=document.getElementById("overlay");
+const finalScore=document.getElementById("finalScore");
+const lbDiv=document.getElementById("leaderboard");
 
 /* ---------- SHARDS ---------- */
-function spawnShard() {
-  const angle = Math.random() * Math.PI * 2;
-  const geo = new THREE.SphereGeometry(0.5, 16, 16);
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0xff4444,
-    emissive: 0xff0000,
-    emissiveIntensity: 0.8
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(0, 0, 0);
+function spawnShard(){
+  const angle=Math.random()*Math.PI*2;
+  const geo=new THREE.SphereGeometry(0.5,16,16);
+  const mat=new THREE.MeshStandardMaterial({color:0xff4444,emissive:0xff0000,emissiveIntensity:0.8});
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.position.set(0,0,0);
   scene.add(mesh);
-
-  shards.push({
-    mesh,
-    vel: new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)).multiplyScalar(0.4)
-  });
+  shards.push({mesh,vel:new THREE.Vector3(Math.cos(angle),0,Math.sin(angle)).multiplyScalar(0.4)});
 }
 
 /* ---------- REWIND ---------- */
-function rewind() {
-  if (timeline.length < 60) return;
-  echoes.push({
-    path: [...timeline],
-    t: 0,
-    mesh: createEchoMesh()
-  });
-  timeline = [];
+function rewind(){
+  if(timeline.length<60) return;
+  echoes.push({path:[...timeline],t:0,mesh:createEchoMesh()});
+  timeline=[];
   player.position.set(0,0,0);
-  grace = 120;
-  score += 400;
+  grace=120;
+  score+=400;
 }
 
-function createEchoMesh() {
-  const geo = new THREE.SphereGeometry(1, 16, 16);
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0x3399ff,
-    transparent: true,
-    opacity: 0.35
-  });
-  const m = new THREE.Mesh(geo, mat);
+function createEchoMesh(){
+  const geo=new THREE.SphereGeometry(1,16,16);
+  const mat=new THREE.MeshStandardMaterial({color:0x3399ff,transparent:true,opacity:0.35});
+  const m=new THREE.Mesh(geo,mat);
   scene.add(m);
   return m;
 }
 
 /* ---------- UPDATE ---------- */
-function update() {
-  if (!alive) return;
+function update(){
+  if(!alive) return;
 
-  if (keys["r"]) {
-    keys["r"] = false;
-    rewind();
-  }
+  if(keys["r"]){keys["r"]=false; rewind();}
 
-  const speed = 0.4;
-  if (keys["w"] || keys["arrowup"]) player.position.z -= speed;
-  if (keys["s"] || keys["arrowdown"]) player.position.z += speed;
-  if (keys["a"] || keys["arrowleft"]) player.position.x -= speed;
-  if (keys["d"] || keys["arrowright"]) player.position.x += speed;
+  const speed=0.4;
+  if(keys["w"]||keys["arrowup"]) player.position.z-=speed;
+  if(keys["s"]||keys["arrowdown"]) player.position.z+=speed;
+  if(keys["a"]||keys["arrowleft"]) player.position.x-=speed;
+  if(keys["d"]||keys["arrowright"]) player.position.x+=speed;
 
-  // --- BOUNDARY ---
-  player.position.x = Math.max(-LIMIT, Math.min(LIMIT, player.position.x));
-  player.position.z = Math.max(-LIMIT, Math.min(LIMIT, player.position.z));
+  // BOUNDARIES
+  player.position.x=Math.max(-LIMIT,Math.min(LIMIT,player.position.x));
+  player.position.z=Math.max(-LIMIT,Math.min(LIMIT,player.position.z));
 
   timeline.push(player.position.clone());
-  if (timeline.length > 600) timeline.shift();
+  if(timeline.length>600) timeline.shift();
 
-  if (tick % 30 === 0) spawnShard();
+  if(tick%30===0) spawnShard();
 
-  shards.forEach(s => {
+  // SHARD MOVEMENT & COLLISION
+  shards=shards.filter(s=>{
     s.mesh.position.add(s.vel);
-    if (grace <= 0 && s.mesh.position.distanceTo(player.position) < 1.2) {
-      alive = false;
+    // Check echoes first: destroy shard if inside any echo radius
+    for(const e of echoes){
+      const echoRadius=Math.max(2.5,3.5 - score/1000); // radius shrinks slightly over time
+      if(e.t<e.path.length){
+        const dist=s.mesh.position.distanceTo(e.path[e.t]);
+        if(dist<echoRadius){
+          scene.remove(s.mesh);
+          return false; // shard destroyed
+        }
+      }
+    }
+    // Check collision with player
+    if(grace<=0 && s.mesh.position.distanceTo(player.position)<1.2){
+      alive=false;
       showGameOver();
     }
+    return true;
   });
 
-  echoes.forEach(e => {
-    if (e.t < e.path.length) {
+  // ECHO MOVEMENT
+  echoes.forEach(e=>{
+    if(e.t<e.path.length){
       e.mesh.position.copy(e.path[e.t]);
-      if (grace <= 0 && e.mesh.position.distanceTo(player.position) < 1.5) {
-        alive = false;
-        showGameOver();
-      }
       e.t++;
     }
   });
 
-  score += 1;
-  document.getElementById("score").textContent = "Score: " + score;
-  document.getElementById("status").textContent = grace > 0 ? "SAFE" : "DANGER";
+  score+=1;
+  document.getElementById("score").textContent="Score: "+score;
+  document.getElementById("status").textContent=grace>0?"SAFE":"DANGER";
 
   grace--;
   tick++;
 }
 
 /* ---------- GAME OVER ---------- */
-function showGameOver() {
-  overlay.style.display = "flex";
-  finalScore.textContent = "Score: " + score;
-
-  const lb = saveScore(score);
-  lbDiv.innerHTML = "<strong>Leaderboard:</strong><br>" +
-    lb.map((s,i)=>`#${i+1} - ${s}`).join("<br>");
+function showGameOver(){
+  overlay.style.display="flex";
+  finalScore.textContent="Score: "+score;
+  const lb=saveScore(score);
+  lbDiv.innerHTML="<strong>Leaderboard:</strong><br>"+lb.map((s,i)=>`#${i+1} - ${s}`).join("<br>");
 }
 
 /* ---------- ANIMATE ---------- */
-function animate() {
-  update();
-  renderer.render(scene, camera);
-  requestAnimationFrame(animate);
-}
+function animate(){update(); renderer.render(scene,camera); requestAnimationFrame(animate);}
 animate();
 
 /* ---------- RESIZE ---------- */
-addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
 </body>
