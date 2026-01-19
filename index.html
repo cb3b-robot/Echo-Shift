@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift: Echo Defense</title>
+<title>Echo Shift: Leaderboard</title>
 <style>
   body {
     margin: 0;
@@ -42,6 +42,21 @@ const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
+/* ---------- LEADERBOARD ---------- */
+const LB_KEY = "echo_shift_leaderboard";
+function loadLeaderboard() {
+  return JSON.parse(localStorage.getItem(LB_KEY) || "[]");
+}
+function saveScore(score) {
+  let lb = loadLeaderboard();
+  lb.push(Math.floor(score));
+  lb.sort((a,b)=>b-a);
+  lb = lb.slice(0,5);
+  localStorage.setItem(LB_KEY, JSON.stringify(lb));
+  return lb;
+}
+/* --------------------------------- */
+
 const keys = {};
 addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
@@ -55,6 +70,8 @@ let alive = true;
 let score = 0;
 let shake = 0;
 let grace = 120;
+let leaderboard = loadLeaderboard();
+let scoreSaved = false;
 
 const ECHO_RADIUS = 55;
 
@@ -81,7 +98,13 @@ function rewind() {
 }
 
 function update() {
-  if (!alive) return;
+  if (!alive) {
+    if (!scoreSaved) {
+      leaderboard = saveScore(score);
+      scoreSaved = true;
+    }
+    return;
+  }
 
   if (keys["r"]) {
     keys["r"] = false;
@@ -124,7 +147,6 @@ function update() {
         alive = false;
         shake = 20;
       }
-
       e.t++;
     }
   });
@@ -153,7 +175,6 @@ function update() {
 function draw() {
   ctx.save();
   ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -161,10 +182,9 @@ function draw() {
     const scale = 1 / s.z;
     const x = (s.x - canvas.width/2) * scale + canvas.width/2;
     const y = (s.y - canvas.height/2) * scale + canvas.height/2;
-    const r = 6 * scale;
     ctx.fillStyle = "rgba(255,80,80,0.9)";
     ctx.beginPath();
-    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.arc(x,y,6*scale,0,Math.PI*2);
     ctx.fill();
   });
 
@@ -175,7 +195,6 @@ function draw() {
       ctx.beginPath();
       ctx.arc(p.x, p.y, ECHO_RADIUS, 0, Math.PI*2);
       ctx.stroke();
-
       ctx.fillStyle = "rgba(0,150,255,0.35)";
       ctx.beginPath();
       ctx.arc(p.x, p.y, player.r, 0, Math.PI*2);
@@ -189,19 +208,27 @@ function draw() {
   ctx.fill();
 
   if (!alive) {
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    ctx.fillStyle = "white";
     ctx.textAlign = "center";
+    ctx.fillStyle = "white";
     ctx.font = "48px system-ui";
-    ctx.fillText("REALITY FAILED", canvas.width/2, canvas.height/2 - 40);
+    ctx.fillText("REALITY FAILED", canvas.width/2, canvas.height/2 - 120);
 
-    ctx.font = "24px system-ui";
-    ctx.fillText("Final Score: " + Math.floor(score), canvas.width/2, canvas.height/2 + 10);
+    ctx.font = "22px system-ui";
+    ctx.fillText("Final Score: " + Math.floor(score), canvas.width/2, canvas.height/2 - 80);
 
-    ctx.font = "16px system-ui";
-    ctx.fillText("Refresh to retry", canvas.width/2, canvas.height/2 + 45);
+    ctx.font = "20px system-ui";
+    ctx.fillText("LEADERBOARD", canvas.width/2, canvas.height/2 - 30);
+
+    ctx.font = "18px system-ui";
+    leaderboard.forEach((s,i) => {
+      ctx.fillText(`#${i+1}  ${s}`, canvas.width/2, canvas.height/2 + i*24);
+    });
+
+    ctx.font = "14px system-ui";
+    ctx.fillText("Refresh to retry", canvas.width/2, canvas.height/2 + 140);
   }
 
   ctx.restore();
