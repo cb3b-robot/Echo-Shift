@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Game Over</title>
+<title>Echo Shift 3D — Leaderboard</title>
 <style>
   body {
     margin: 0;
@@ -28,7 +28,7 @@
     display: none;
     justify-content: center;
     align-items: center;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.85);
     color: white;
     flex-direction: column;
     font-family: system-ui;
@@ -39,8 +39,8 @@
     font-size: 48px;
     margin: 0 0 20px 0;
   }
-  #overlay p {
-    font-size: 24px;
+  #overlay p, #overlay div {
+    font-size: 22px;
     margin: 5px 0;
   }
 </style>
@@ -51,14 +51,30 @@
   <div id="status">SAFE</div>
   <div>R = Rewind</div>
 </div>
+
 <div id="overlay">
   <h1>GAME OVER</h1>
   <p id="finalScore">Score: 0</p>
+  <div id="leaderboard"></div>
   <p>Refresh to retry</p>
 </div>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+/* ---------- LEADERBOARD STORAGE ---------- */
+const LB_KEY = "echo_shift_leaderboard";
+function loadLeaderboard() {
+  return JSON.parse(localStorage.getItem(LB_KEY) || "[]");
+}
+function saveScore(score) {
+  let lb = loadLeaderboard();
+  lb.push(Math.floor(score));
+  lb.sort((a,b)=>b-a);
+  lb = lb.slice(0,5);
+  localStorage.setItem(LB_KEY, JSON.stringify(lb));
+  return lb;
+}
 
 /* ---------- SCENE ---------- */
 const scene = new THREE.Scene();
@@ -111,6 +127,7 @@ const LIMIT = 20;
 
 const overlay = document.getElementById("overlay");
 const finalScore = document.getElementById("finalScore");
+const lbDiv = document.getElementById("leaderboard");
 
 /* ---------- SHARDS ---------- */
 function spawnShard() {
@@ -212,6 +229,10 @@ function update() {
 function showGameOver() {
   overlay.style.display = "flex";
   finalScore.textContent = "Score: " + score;
+
+  const lb = saveScore(score);
+  lbDiv.innerHTML = "<strong>Leaderboard:</strong><br>" +
+    lb.map((s,i)=>`#${i+1} - ${s}`).join("<br>");
 }
 
 /* ---------- ANIMATE ---------- */
