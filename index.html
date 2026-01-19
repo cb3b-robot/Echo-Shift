@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Hard Mode Arena (Front Wall Transparent)</title>
+<title>Echo Shift 3D — Cinematic Hard Mode</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:system-ui; color:white; }
   #ui { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:14px; z-index:10; }
@@ -40,6 +40,8 @@ scene.fog = new THREE.Fog(0x000000,20,80);
 const camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,200);
 camera.position.set(0,35,40);
 camera.lookAt(0,0,0);
+const baseCamPos = camera.position.clone();
+let shakeTimer = 0;
 
 /* ---------- RENDERER ---------- */
 const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -68,7 +70,6 @@ const wallPositions = [
   {x:25,z:0,rotY:Math.PI/2},     // right wall solid
   {x:-25,z:0,rotY:Math.PI/2}     // left wall solid
 ];
-
 wallPositions.forEach(pos=>{
   const mat = new THREE.MeshStandardMaterial({
     color:0x333333,
@@ -124,7 +125,7 @@ function spawnShard(){
 /* ---------- REWIND ---------- */
 function rewind(){
   if(timeline.length<60) return;
-  echoes.push({path:[...timeline],t:0,mesh:createEchoMesh()});
+  echoes.push({path:[...timeline],t:0,mesh:createEchoMesh(),pulse:0});
   timeline=[];
   player.position.set(0,0,0);
   grace=120;
@@ -158,7 +159,7 @@ function update(){
   timeline.push(player.position.clone());
   if(timeline.length>600) timeline.shift();
 
-  // SPAWN SHARDS — harder over time
+  // SPAWN SHARDS
   const spawnRate = Math.max(5, 30 - Math.floor(score/500));
   if(tick % spawnRate === 0){
     const shardCount = Math.min(3,1 + Math.floor(score/1000));
@@ -172,6 +173,13 @@ function update(){
     for(const e of echoes){
       const echoRadius = Math.max(2.5,3.5 - score/1000);
       if(e.t<e.path.length && s.mesh.position.distanceTo(e.path[e.t])<echoRadius){
+        // TRIGGER CAMERA SHAKE
+        shakeTimer = 5;
+        // TRIGGER ECHO PULSE
+        e.pulse = 5;
+        // SHARD FLASH
+        s.mesh.material.emissiveIntensity = 3;
+        setTimeout(()=>{if(s.mesh) s.mesh.material.emissiveIntensity=1.8;}, 50);
         scene.remove(s.mesh);
         return false; // destroyed by echo
       }
@@ -184,8 +192,24 @@ function update(){
     return true;
   });
 
-  // ECHO MOVEMENT
-  echoes.forEach(e=>{ if(e.t<e.path.length) e.mesh.position.copy(e.path[e.t]); e.t++; });
+  // ECHO MOVEMENT & PULSE DECAY
+  echoes.forEach(e=>{
+    if(e.t<e.path.length) e.mesh.position.copy(e.path[e.t]);
+    if(e.pulse>0){
+      e.mesh.material.opacity = 0.35 + e.pulse*0.1;
+      e.pulse--;
+    } else e.mesh.material.opacity = 0.35;
+    e.t++;
+  });
+
+  // CAMERA SHAKE
+  if(shakeTimer>0){
+    camera.position.x = baseCamPos.x + (Math.random()-0.5)*0.5;
+    camera.position.z = baseCamPos.z + (Math.random()-0.5)*0.5;
+    shakeTimer--;
+  } else {
+    camera.position.copy(baseCamPos);
+  }
 
   score++;
   document.getElementById("score").textContent="Score: "+score;
