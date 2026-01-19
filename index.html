@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Bounded</title>
+<title>Echo Shift 3D — Game Over</title>
 <style>
   body {
     margin: 0;
@@ -21,6 +21,28 @@
     font-size: 14px;
     z-index: 10;
   }
+  #overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    flex-direction: column;
+    font-family: system-ui;
+    text-align: center;
+    z-index: 20;
+  }
+  #overlay h1 {
+    font-size: 48px;
+    margin: 0 0 20px 0;
+  }
+  #overlay p {
+    font-size: 24px;
+    margin: 5px 0;
+  }
 </style>
 </head>
 <body>
@@ -28,6 +50,11 @@
   <div id="score">Score: 0</div>
   <div id="status">SAFE</div>
   <div>R = Rewind</div>
+</div>
+<div id="overlay">
+  <h1>GAME OVER</h1>
+  <p id="finalScore">Score: 0</p>
+  <p>Refresh to retry</p>
 </div>
 
 <script type="module">
@@ -51,7 +78,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-/* ---------- LIGHTING ---------- */
+/* ---------- LIGHT ---------- */
 scene.add(new THREE.AmbientLight(0x404040));
 const light = new THREE.PointLight(0x00ffff, 1.2, 100);
 light.position.set(0, 20, 10);
@@ -80,7 +107,10 @@ let score = 0;
 let alive = true;
 let grace = 120;
 let tick = 0;
-const LIMIT = 20; // arena half-size
+const LIMIT = 20;
+
+const overlay = document.getElementById("overlay");
+const finalScore = document.getElementById("finalScore");
 
 /* ---------- SHARDS ---------- */
 function spawnShard() {
@@ -127,7 +157,7 @@ function createEchoMesh() {
   return m;
 }
 
-/* ---------- LOOP ---------- */
+/* ---------- UPDATE ---------- */
 function update() {
   if (!alive) return;
 
@@ -142,7 +172,7 @@ function update() {
   if (keys["a"] || keys["arrowleft"]) player.position.x -= speed;
   if (keys["d"] || keys["arrowright"]) player.position.x += speed;
 
-  // --- BOUNDARY CLAMP ---
+  // --- BOUNDARY ---
   player.position.x = Math.max(-LIMIT, Math.min(LIMIT, player.position.x));
   player.position.z = Math.max(-LIMIT, Math.min(LIMIT, player.position.z));
 
@@ -155,6 +185,7 @@ function update() {
     s.mesh.position.add(s.vel);
     if (grace <= 0 && s.mesh.position.distanceTo(player.position) < 1.2) {
       alive = false;
+      showGameOver();
     }
   });
 
@@ -163,6 +194,7 @@ function update() {
       e.mesh.position.copy(e.path[e.t]);
       if (grace <= 0 && e.mesh.position.distanceTo(player.position) < 1.5) {
         alive = false;
+        showGameOver();
       }
       e.t++;
     }
@@ -176,6 +208,13 @@ function update() {
   tick++;
 }
 
+/* ---------- GAME OVER ---------- */
+function showGameOver() {
+  overlay.style.display = "flex";
+  finalScore.textContent = "Score: " + score;
+}
+
+/* ---------- ANIMATE ---------- */
 function animate() {
   update();
   renderer.render(scene, camera);
