@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Hard Mode Arena (Enhanced)</title>
+<title>Echo Shift 3D — Hard Mode Arena (Front Wall Transparent)</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:system-ui; color:white; }
   #ui { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:14px; z-index:10; }
@@ -62,17 +62,23 @@ scene.add(floor);
 
 /* ---------- WALLS ---------- */
 const wallGeo = new THREE.BoxGeometry(50,5,0.5);
-const wallMat = new THREE.MeshStandardMaterial({color:0x333333});
-const walls = [];
 const wallPositions = [
-  {x:0,z:25}, {x:0,z:-25}, {x:25,z:0,rotY:Math.PI/2}, {x:-25,z:0,rotY:Math.PI/2}
+  {x:0,z:25,transparent:true},   // front wall transparent
+  {x:0,z:-25},                    // back wall solid
+  {x:25,z:0,rotY:Math.PI/2},     // right wall solid
+  {x:-25,z:0,rotY:Math.PI/2}     // left wall solid
 ];
+
 wallPositions.forEach(pos=>{
-  const wall = new THREE.Mesh(wallGeo, wallMat);
+  const mat = new THREE.MeshStandardMaterial({
+    color:0x333333,
+    transparent: !!pos.transparent,
+    opacity: pos.transparent ? 0.3 : 1
+  });
+  const wall = new THREE.Mesh(wallGeo, mat);
   wall.position.set(pos.x,2.5,pos.z);
   if(pos.rotY) wall.rotation.y = pos.rotY;
   scene.add(wall);
-  walls.push(wall);
 });
 
 /* ---------- INPUT ---------- */
@@ -105,9 +111,9 @@ function spawnShard(){
   const angle=Math.random()*Math.PI*2;
   const geo=new THREE.SphereGeometry(1.2,16,16); // bigger shard
   const mat=new THREE.MeshStandardMaterial({
-    color:0xff6666, // slightly brighter
+    color:0xff6666,
     emissive:0xff0000,
-    emissiveIntensity:1.8 // stronger glow
+    emissiveIntensity:1.8
   });
   const mesh=new THREE.Mesh(geo,mat);
   mesh.position.set(0,0,0);
