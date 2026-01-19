@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Cinematic Hard Mode</title>
+<title>Echo Shift 3D — Cinematic Hard Mode (Gentle Scaling)</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:system-ui; color:white; }
   #ui { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:14px; z-index:10; }
@@ -168,14 +168,14 @@ function update(){
 
   // SHARD MOVEMENT & COLLISION
   shards = shards.filter(s=>{
-    s.mesh.position.add(s.vel.multiplyScalar(1 + score/5000));
+    s.mesh.position.add(s.vel.multiplyScalar(1 + score/15000)); // slower speed scaling
 
     for(const e of echoes){
       const echoRadius = Math.max(2.5,3.5 - score/1000);
       if(e.t<e.path.length && s.mesh.position.distanceTo(e.path[e.t])<echoRadius){
-        // TRIGGER CAMERA SHAKE
+        // CAMERA SHAKE
         shakeTimer = 5;
-        // TRIGGER ECHO PULSE
+        // ECHO PULSE
         e.pulse = 5;
         // SHARD FLASH
         s.mesh.material.emissiveIntensity = 3;
