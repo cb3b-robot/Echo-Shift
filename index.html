@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D</title>
+<title>Echo Shift 3D — Bounded</title>
 <style>
   body {
     margin: 0;
@@ -53,7 +53,6 @@ document.body.appendChild(renderer.domElement);
 
 /* ---------- LIGHTING ---------- */
 scene.add(new THREE.AmbientLight(0x404040));
-
 const light = new THREE.PointLight(0x00ffff, 1.2, 100);
 light.position.set(0, 20, 10);
 scene.add(light);
@@ -81,6 +80,7 @@ let score = 0;
 let alive = true;
 let grace = 120;
 let tick = 0;
+const LIMIT = 20; // arena half-size
 
 /* ---------- SHARDS ---------- */
 function spawnShard() {
@@ -141,6 +141,10 @@ function update() {
   if (keys["s"] || keys["arrowdown"]) player.position.z += speed;
   if (keys["a"] || keys["arrowleft"]) player.position.x -= speed;
   if (keys["d"] || keys["arrowright"]) player.position.x += speed;
+
+  // --- BOUNDARY CLAMP ---
+  player.position.x = Math.max(-LIMIT, Math.min(LIMIT, player.position.x));
+  player.position.z = Math.max(-LIMIT, Math.min(LIMIT, player.position.z));
 
   timeline.push(player.position.clone());
   if (timeline.length > 600) timeline.shift();
