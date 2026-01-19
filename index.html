@@ -102,7 +102,6 @@ function update() {
 
   if (tick % 25 === 0) spawnShard();
 
-  // Update shards
   shards = shards.filter(s => {
     s.z -= 0.02;
     s.x += s.vx * 8;
@@ -110,7 +109,6 @@ function update() {
     return s.z > 0;
   });
 
-  // Echo logic + shard destruction
   echoes.forEach(e => {
     if (e.t < e.path.length) {
       const p = e.path[e.t];
@@ -131,7 +129,6 @@ function update() {
     }
   });
 
-  // Player collision
   shards.forEach(s => {
     const scale = 1 / s.z;
     const sx = (s.x - canvas.width/2) * scale + canvas.width/2;
@@ -160,7 +157,6 @@ function draw() {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Shards
   shards.forEach(s => {
     const scale = 1 / s.z;
     const x = (s.x - canvas.width/2) * scale + canvas.width/2;
@@ -172,7 +168,6 @@ function draw() {
     ctx.fill();
   });
 
-  // Echoes + radius
   echoes.forEach(e => {
     if (e.t < e.path.length) {
       const p = e.path[e.t];
@@ -188,16 +183,25 @@ function draw() {
     }
   });
 
-  // Player
   ctx.fillStyle = grace > 0 ? "#ffff66" : "#00ffcc";
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
   ctx.fill();
 
   if (!alive) {
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
     ctx.fillStyle = "white";
-    ctx.font = "42px system-ui";
-    ctx.fillText("REALITY FAILED", canvas.width/2 - 160, canvas.height/2);
+    ctx.textAlign = "center";
+    ctx.font = "48px system-ui";
+    ctx.fillText("REALITY FAILED", canvas.width/2, canvas.height/2 - 40);
+
+    ctx.font = "24px system-ui";
+    ctx.fillText("Final Score: " + Math.floor(score), canvas.width/2, canvas.height/2 + 10);
+
+    ctx.font = "16px system-ui";
+    ctx.fillText("Refresh to retry", canvas.width/2, canvas.height/2 + 45);
   }
 
   ctx.restore();
