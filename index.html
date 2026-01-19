@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Echo Shift 3D — Cinematic Hard Mode (Gentle Scaling)</title>
+<title>Echo Shift 3D — Cinematic Trails</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:system-ui; color:white; }
   #ui { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:14px; z-index:10; }
@@ -110,7 +110,7 @@ const lbDiv=document.getElementById("leaderboard");
 /* ---------- SHARDS ---------- */
 function spawnShard(){
   const angle=Math.random()*Math.PI*2;
-  const geo=new THREE.SphereGeometry(1.2,16,16); // bigger shard
+  const geo=new THREE.SphereGeometry(1.2,16,16);
   const mat=new THREE.MeshStandardMaterial({
     color:0xff6666,
     emissive:0xff0000,
@@ -119,13 +119,22 @@ function spawnShard(){
   const mesh=new THREE.Mesh(geo,mat);
   mesh.position.set(0,0,0);
   scene.add(mesh);
-  shards.push({mesh,vel:new THREE.Vector3(Math.cos(angle),0,Math.sin(angle)).multiplyScalar(0.4)});
+
+  // trail for shard
+  const trailGeo = new THREE.BufferGeometry();
+  const trailMat = new THREE.LineBasicMaterial({color:0xff4444, transparent:true, opacity:0.6});
+  const positions = new Float32Array(100*3); // 100 segments
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  const trailLine = new THREE.Line(trailGeo, trailMat);
+  scene.add(trailLine);
+
+  shards.push({mesh,vel:new THREE.Vector3(Math.cos(angle),0,Math.sin(angle)).multiplyScalar(0.4), trail:trailLine, trailPositions:[]});
 }
 
 /* ---------- REWIND ---------- */
 function rewind(){
   if(timeline.length<60) return;
-  echoes.push({path:[...timeline],t:0,mesh:createEchoMesh(),pulse:0});
+  echoes.push({path:[...timeline],t:0,mesh:createEchoMesh(),pulse:0, trailPositions:[]});
   timeline=[];
   player.position.set(0,0,0);
   grace=120;
@@ -168,20 +177,28 @@ function update(){
 
   // SHARD MOVEMENT & COLLISION
   shards = shards.filter(s=>{
-    s.mesh.position.add(s.vel.multiplyScalar(1 + score/15000)); // slower speed scaling
+    const speedFactor = 1 + score/15000;
+    s.mesh.position.add(s.vel.clone().multiplyScalar(speedFactor));
+
+    // update shard trail
+    s.trailPositions.push(s.mesh.position.clone());
+    if(s.trailPositions.length>50) s.trailPositions.shift();
+    const posAttr = s.trail.geometry.attributes.position;
+    s.trailPositions.forEach((p,i)=>{
+      posAttr.setXYZ(i,p.x,p.y,p.z);
+    });
+    posAttr.needsUpdate = true;
 
     for(const e of echoes){
       const echoRadius = Math.max(2.5,3.5 - score/1000);
       if(e.t<e.path.length && s.mesh.position.distanceTo(e.path[e.t])<echoRadius){
-        // CAMERA SHAKE
         shakeTimer = 5;
-        // ECHO PULSE
         e.pulse = 5;
-        // SHARD FLASH
         s.mesh.material.emissiveIntensity = 3;
-        setTimeout(()=>{if(s.mesh) s.mesh.material.emissiveIntensity=1.8;}, 50);
+        setTimeout(()=>{if(s.mesh) s.mesh.material.emissiveIntensity=1.8;},50);
         scene.remove(s.mesh);
-        return false; // destroyed by echo
+        scene.remove(s.trail);
+        return false;
       }
     }
 
@@ -192,13 +209,29 @@ function update(){
     return true;
   });
 
-  // ECHO MOVEMENT & PULSE DECAY
+  // ECHO MOVEMENT & PULSE + TRAIL
   echoes.forEach(e=>{
     if(e.t<e.path.length) e.mesh.position.copy(e.path[e.t]);
     if(e.pulse>0){
       e.mesh.material.opacity = 0.35 + e.pulse*0.1;
       e.pulse--;
     } else e.mesh.material.opacity = 0.35;
+
+    e.trailPositions.push(e.mesh.position.clone());
+    if(e.trailPositions.length>50) e.trailPositions.shift();
+    if(!e.trail) {
+      const geo = new THREE.BufferGeometry();
+      const positions = new Float32Array(50*3);
+      geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+      const mat = new THREE.LineBasicMaterial({color:0x3399ff,transparent:true,opacity:0.35});
+      e.trail = new THREE.Line(geo,mat);
+      scene.add(e.trail);
+    }
+    e.trailPositions.forEach((p,i)=>{
+      e.trail.geometry.attributes.position.setXYZ(i,p.x,p.y,p.z);
+    });
+    e.trail.geometry.attributes.position.needsUpdate = true;
+
     e.t++;
   });
 
